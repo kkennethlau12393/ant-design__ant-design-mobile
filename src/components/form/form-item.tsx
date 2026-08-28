@@ -22,15 +22,6 @@ const NAME_SPLIT = '__SPLIT__'
 type RenderChildren<Values = any> = (form: FormInstance<Values>) => ReactNode
 type ChildrenType<Values = any> = RenderChildren<Values> | ReactNode
 
-function useChildren(children?: ChildrenType): ChildrenType {
-  if (typeof children === 'function') {
-    return children
-  }
-
-  const childList = toArray(children)
-  return childList.length <= 1 ? childList[0] : childList
-}
-
 type RcFieldProps = Omit<FieldProps, 'children'>
 
 const classPrefix = `adm-form-item`
@@ -274,8 +265,6 @@ export const FormItem: FC<FormItemProps> = props => {
     ...fieldProps
   } = props
 
-  const mergedChildren = useChildren(children)
-
   const { name: formName } = useContext(FormContext)
   const { validateTrigger: contextValidateTrigger } = useContext(FieldContext)
 
@@ -370,10 +359,10 @@ export const FormItem: FC<FormItemProps> = props => {
     )
   }
 
-  const isRenderProps = typeof mergedChildren === 'function'
+  const isRenderProps = typeof children === 'function'
 
   if (!name && !isRenderProps && !props.dependencies) {
-    return renderLayout(mergedChildren) as JSX.Element
+    return renderLayout(children) as JSX.Element
   }
 
   let Variables: Record<string, string> = {}
@@ -427,7 +416,7 @@ export const FormItem: FC<FormItemProps> = props => {
 
         if (isRenderProps) {
           if ((shouldUpdate || dependencies) && !name) {
-            childNode = (mergedChildren as RenderChildren)(context)
+            childNode = (children as RenderChildren)(context)
           } else {
             if (!(shouldUpdate || dependencies)) {
               devWarning(
@@ -449,18 +438,18 @@ export const FormItem: FC<FormItemProps> = props => {
             'Form.Item',
             'Must set `name` or use render props when `dependencies` is set.'
           )
-        } else if (React.isValidElement(mergedChildren)) {
-          if (mergedChildren.props.defaultValue) {
+        } else if (React.isValidElement(children)) {
+          if (children.props.defaultValue) {
             devWarning(
               'Form.Item',
               '`defaultValue` will not work on controlled Field. You should use `initialValues` of Form instead.'
             )
           }
-          const childProps = { ...mergedChildren.props, ...control }
+          const childProps = { ...children.props, ...control }
 
-          if (isSafeSetRefComponent(mergedChildren)) {
+          if (isSafeSetRefComponent(children)) {
             childProps.ref = (instance: any) => {
-              const originRef = (mergedChildren as any).ref
+              const originRef = (children as any).ref
               if (originRef) {
                 if (typeof originRef === 'function') {
                   originRef(instance)
@@ -486,7 +475,7 @@ export const FormItem: FC<FormItemProps> = props => {
           triggers.forEach(eventName => {
             childProps[eventName] = (...args: any[]) => {
               control[eventName]?.(...args)
-              mergedChildren.props[eventName]?.(...args)
+              children.props[eventName]?.(...args)
             }
           })
 
@@ -495,7 +484,7 @@ export const FormItem: FC<FormItemProps> = props => {
               value={control[props.valuePropName || 'value']}
               update={updateRef.current}
             >
-              {React.cloneElement(mergedChildren, childProps)}
+              {React.cloneElement(children, childProps)}
             </MemoInput>
           )
         } else {
@@ -505,7 +494,7 @@ export const FormItem: FC<FormItemProps> = props => {
               '`name` is only used for validate React element. If you are using Form.Item as layout display, please remove `name` instead.'
             )
           }
-          childNode = mergedChildren
+          childNode = children
         }
 
         return renderLayout(childNode, fieldId, meta, isRequired)
